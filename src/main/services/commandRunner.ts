@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { basename } from 'node:path'
 import { logger } from './logger'
 
@@ -15,6 +16,8 @@ export interface RunOptions {
   /** نص يظهر في السجل بدل الأمر الحقيقي */
   display?: string
   maxBuffer?: number
+  /** مجلد التشغيل (الافتراضي: مجلد مؤقت صالح) */
+  cwd?: string
 }
 
 export interface RunOutput {
@@ -29,6 +32,9 @@ export interface RunOutput {
   spawnError?: string
   durationMs: number
 }
+
+/** أسطر ضوضاء يطبعها adb على بعض أجهزة ويندوز ولا علاقة لها بنتيجة الأمر */
+const NOISE = /^(The directory name is invalid\.?|Could Not Find .*AdbWinApi\.dll\.dat)\s*$/i
 
 export function failure(message: string): RunOutput {
   return {
@@ -78,7 +84,7 @@ export function runCommand(bin: string, args: string[], opts: RunOptions = {}): 
 
     let child: ChildProcessWithoutNullStreams
     try {
-      child = spawn(bin, args, { windowsHide: true, shell: false })
+      child = spawn(bin, args, { windowsHide: true, shell: false, cwd: opts.cwd ?? tmpdir() })
     } catch (e) {
       const msg = `تعذّر تشغيل الأمر: ${e instanceof Error ? e.message : String(e)}`
       if (!opts.quiet) logger.err(msg)
@@ -86,12 +92,18 @@ export function runCommand(bin: string, args: string[], opts: RunOptions = {}): 
       return
     }
 
-    const makeSink = (level: 'out' | 'err') => {
+    const makeSink = (level: 'out' | 'err', logLevel: 'out' | 'err') => {
       let partial = ''
       const emit = (line: string): void => {
-        if (opts.quiet || opts.quietOutput) return
+        if (NOISE.test(line.trim())) return
         if (line.trim() === '') return
-        logger.log(level, line)
+        if (stdout.length + stderr.length < maxBuffer) {
+          output += `${line}\n`
+          if (level === 'out') stdout += `${line}\n`
+          else stderr += `${line}\n`
+        }
+        if (opts.quiet || opts.quietOutput) return
+        logger.log(logLevel, line)
       }
       return {
         push(chunk: string): void {
@@ -106,25 +118,14 @@ export function runCommand(bin: string, args: string[], opts: RunOptions = {}): 
         }
       }
     }
-    const outSink = makeSink('out')
-    const errSink = makeSink(errLevel)
+    // ملاحظة: stderr الخاص بـ fastboot يُسجَّل كمخرجات عادية، لكنه يبقى في stderr/output
+    const outSink = makeSink('out', 'out')
+    const errSink = makeSink('err', errLevel)
 
     child.stdout.setEncoding('utf8')
     child.stderr.setEncoding('utf8')
-    child.stdout.on('data', (c: string) => {
-      if (stdout.length < maxBuffer) {
-        stdout += c
-        output += c
-      }
-      outSink.push(c)
-    })
-    child.stderr.on('data', (c: string) => {
-      if (stderr.length < maxBuffer) {
-        stderr += c
-        output += c
-      }
-      errSink.push(c)
-    })
+    child.stdout.on('data', (c: string) => outSink.push(c))
+    child.stderr.on('data', (c: string) => errSink.push(c))
 
     const kill = (): void => {
       try {

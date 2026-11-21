@@ -24,6 +24,10 @@ const RULES: Array<[RegExp, string]> = [
     'خادم ADB لا يعمل. حدّث الاتصال أو أعد تشغيل البرنامج.'
   ],
   [
+    /No permission to write APN settings/i,
+    'هذا الجهاز يمنع تعديل APN عبر ADB (قيد أمان في النظام). أدخل الـ APN يدوياً: الإعدادات ← الاتصالات ← شبكات الجوال ← أسماء نقاط الوصول. استخدم قالب «فتح شاشة APN».'
+  ],
+  [
     /Permission Denial|requires android\.permission|SecurityException|not allowed to/i,
     'رفض الجهاز الأمر بسبب الصلاحيات. بعض الأوامر تحتاج Root أو إصدار أندرويد/ROM مختلفاً.'
   ],

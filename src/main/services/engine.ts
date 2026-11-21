@@ -31,6 +31,8 @@ interface StepOutcome {
   error?: string
 }
 
+const DEFAULT_SHELL_REJECT =
+  'Error while accessing provider|java\\.lang\\.\\w*Exception|Permission Denial|Can\'t find service|inaccessible or not found'
 const DEFAULT_INPUT_PATTERN = '^[\\x20-\\x7E]{1,128}$'
 
 function fromRun(r: RunOutput): StepOutcome {
@@ -285,13 +287,19 @@ export class ProfileEngine extends EventEmitter {
     if (!base.ok) return base
 
     if (step.expect) {
-      const re = new RegExp(resolveTemplate(step.expect, ctx, 'regex'), 'i')
+      const re = new RegExp(resolveTemplate(step.expect, ctx, 'regex'), 'im')
       if (!re.test(base.output)) {
         return { ok: false, output: base.output, error: 'المخرجات لا تحتوي على النتيجة المتوقعة' }
       }
     }
-    if (step.reject) {
-      const m = new RegExp(resolveTemplate(step.reject, ctx, 'regex'), 'i').exec(base.output)
+    // أوامر shell: أي استثناء Java أو رفض صلاحيات يعني فشل الأمر حتى لو كان رمز الخروج 0
+    const rejectSrc = step.reject
+      ? resolveTemplate(step.reject, ctx, 'regex')
+      : step.type === 'shell'
+        ? DEFAULT_SHELL_REJECT
+        : undefined
+    if (rejectSrc) {
+      const m = new RegExp(rejectSrc, 'im').exec(base.output)
       if (m) return { ok: false, output: base.output, error: `ظهر في المخرجات ما يدل على الفشل: «${m[0]}»` }
     }
 
