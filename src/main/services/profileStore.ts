@@ -110,14 +110,15 @@ function normalizeInput(raw: any, where: string, errors: string[]): InputDef | n
   }
   if (type === 'select') {
     const opts = Array.isArray(raw.options) ? raw.options : []
-    def.options = opts
+    const options = opts
       .filter((o: any) => o && typeof o.value === 'string')
       .map((o: any) => ({ value: o.value as string, label: isStr(o.label) ? (o.label as string) : (o.value as string) }))
-    if (def.options.length === 0) {
+    if (options.length === 0) {
       errors.push(`${where} → ${raw.id}: حقل select بدون options`)
       return null
     }
-    if (def.default === undefined) def.default = def.options[0].value
+    def.options = options
+    if (def.default === undefined) def.default = options[0].value
   }
   return def
 }
