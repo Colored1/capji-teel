@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+*.log
+.DS_Store
+# أدوات adb/fastboot الثنائية لا تُرفع إلى GitHub (حمّلها وضعها يدوياً في resources/tools)
+resources/tools/*.exe
+resources/tools/*.dll
+resources/tools/adb
+resources/tools/fastboot

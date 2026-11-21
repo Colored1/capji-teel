@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "id": "volte-status",
+      "section": "volte",
+      "title": "فحص حالة VoLTE / IMS",
+      "description": "قراءة فقط: يعرض خصائص IMS وإعدادات الشركة وحالة التسجيل.",
+      "risk": "low",
+      "steps": [
+        { "id": "props", "label": "خصائص IMS/VoLTE", "type": "shell", "command": "getprop | grep -i -E 'ims|volte|wfc' || true" },
+        { "id": "cc", "label": "إعدادات الشركة (Carrier Config)", "type": "shell", "command": "dumpsys carrier_config | grep -i -E 'volte|vt_available|wfc_ims' | head -n 40 || true", "continueOnError": true },
+        { "id": "ims", "label": "حالة خدمة IMS", "type": "shell", "command": "dumpsys telephony_ims | head -n 60 || true", "continueOnError": true },
+        { "id": "reg", "label": "تسجيل الشبكة", "type": "shell", "command": "dumpsys telephony.registry | grep -i -E 'ims|volte' | head -n 20 || true", "continueOnError": true }
+      ]
+    },
+    {
+      "id": "volte-carrier-config",
+      "section": "volte",
+      "title": "تفعيل VoLTE عبر Carrier Config",
+      "description": "يضبط مفاتيح VoLTE/الفيديو في إعدادات الشركة (أندرويد 11+ غالباً) ثم يطلب من الجهاز تفعيل IMS.",
+      "risk": "medium",
+      "backupFirst": true,
+      "warnings": [
+        "ينجح فقط إذا كانت شبكة الشريحة تدعم VoLTE فعلياً وكان الجهاز يدعمها.",
+        "يمكن التراجع من قالب «تصفير إعدادات Carrier Config»."
+      ],
+      "inputs": [
+        {
+          "id": "slot",
+          "label": "رقم الشريحة (Slot)",
+          "type": "select",
+          "options": [
+            { "value": "0", "label": "الشريحة 1" },
+            { "value": "1", "label": "الشريحة 2" }
+          ]
+        }
+      ],
+      "steps": [
+        { "id": "volte", "label": "carrier_volte_available_bool", "type": "shell", "command": "cmd phone cc set-value -p carrier_volte_available_bool true", "reject": "Unknown|Exception|Error|usage" },
+        { "id": "prov", "label": "carrier_volte_provisioned_bool", "type": "shell", "command": "cmd phone cc set-value -p carrier_volte_provisioned_bool true", "continueOnError": true, "reject": "Unknown|Exception|Error|usage" },
+        { "id": "vt", "label": "carrier_vt_available_bool", "type": "shell", "command": "cmd phone cc set-value -p carrier_vt_available_bool true", "continueOnError": true, "reject": "Unknown|Exception|Error|usage" },
+        { "id": "ims", "label": "تفعيل IMS للشريحة", "type": "shell", "command": "cmd phone ims enable -s {{input.slot}}", "continueOnError": true, "reject": "Unknown|Exception|Error|usage" },
+        { "id": "legacy", "label": "إعداد قديم volte_vt_enabled", "type": "shell", "command": "settings put global volte_vt_enabled 1", "continueOnError": true },
+        { "id": "check", "label": "التحقق من الإعدادات", "type": "shell", "command": "dumpsys carrier_config | grep -i -E 'volte_available|volte_provisioned' | head -n 10 || true", "continueOnError": true }
+      ]
+    },
+    {
+      "id": "volte-carrier-config-reset",
+      "section": "volte",
+      "title": "تصفير إعدادات Carrier Config",
+      "description": "يلغي كل التعديلات اليدوية على إعدادات الشركة (تراجع عن التفعيل).",
+      "risk": "medium",
+      "steps": [
+        { "id": "clear", "label": "مسح التعديلات", "type": "shell", "command": "cmd phone cc clear-values", "reject": "Unknown|Exception|Error|usage" }
+      ]
+    },
+    {
+      "id": "volte-prop-override-root",
+      "section": "volte",
+      "title": "تفعيل VoLTE بخصائص النظام (Root)",
+      "description": "يضبط persist.dbg.*_avail_ovr ثم يعيد تشغيل الجهاز. يعمل على أجهزة Qualcomm/AOSP المروّتة فقط.",
+      "risk": "high",
+      "backupFirst": true,
+      "warnings": [
+        "يتطلب Root. قد لا يعمل أو قد يسبب سلوكاً غير متوقع على بعض الأجهزة.",
+        "سيُعاد تشغيل الجهاز تلقائياً."
+      ],
+      "steps": [
+        { "id": "p1", "label": "persist.dbg.volte_avail_ovr", "type": "shell", "su": true, "command": "setprop persist.dbg.volte_avail_ovr 1" },
+        { "id": "p2", "label": "persist.dbg.vt_avail_ovr", "type": "shell", "su": true, "command": "setprop persist.dbg.vt_avail_ovr 1" },
+        { "id": "p3", "label": "persist.dbg.wfc_avail_ovr", "type": "shell", "su": true, "command": "setprop persist.dbg.wfc_avail_ovr 1", "continueOnError": true },
+        { "id": "reboot", "label": "إعادة تشغيل الجهاز", "type": "adb", "args": ["reboot"] }
+      ]
+    },
+    {
+      "id": "volte-modem-check",
+      "section": "volte",
+      "title": "فحص IMS على مستوى المودم (AT)",
+      "description": "يسأل المودم عن تسجيل LTE وIMS (قد لا تدعم كل المودمات هذه الأوامر).",
+      "risk": "low",
+      "requires": ["com"],
+      "steps": [
+        { "id": "cereg", "label": "تسجيل LTE", "type": "at", "command": "AT+CEREG?", "continueOnError": true },
+        { "id": "cireg", "label": "تسجيل IMS", "type": "at", "command": "AT+CIREG?", "continueOnError": true },
+        { "id": "cavims", "label": "دعم الصوت عبر IMS", "type": "at", "command": "AT+CAVIMS?", "continueOnError": true },
+        { "id": "cgdcont", "label": "سياقات البيانات", "type": "at", "command": "AT+CGDCONT?", "continueOnError": true }
+      ]
+    }
+  ]
+}

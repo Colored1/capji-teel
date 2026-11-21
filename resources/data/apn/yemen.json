@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "_comment": "شركات الاتصالات في اليمن (MCC 421). عدّل أو أضف شركات/APN هنا ثم اضغط «إعادة تحميل القوالب» في الإعدادات. القيم verified:false تحتاج مراجعة قبل الاعتماد.",
+  "carriers": [
+    {
+      "id": "yemen-mobile",
+      "name": "Yemen Mobile",
+      "nameAr": "يمن موبايل",
+      "mcc": "421",
+      "mnc": "03",
+      "apns": [
+        {
+          "id": "internet",
+          "label": "Internet",
+          "name": "Yemen Mobile Internet",
+          "apn": "internet",
+          "type": "default,supl",
+          "protocol": "IP",
+          "roamingProtocol": "IP",
+          "authType": "0",
+          "verified": false,
+          "note": "قيمة شائعة وغير مؤكدة من مصدر رسمي — تحقق منها مع الشركة. إن ظهرت الشريحة برمز شبكة مختلف (مثل 42111) أضف شركة جديدة بنفس القيم."
+        }
+      ]
+    },
+    {
+      "id": "mtn-you",
+      "name": "MTN / YOU",
+      "nameAr": "MTN (YOU)",
+      "mcc": "421",
+      "mnc": "02",
+      "apns": [
+        {
+          "id": "fast-internet",
+          "label": "fast internet",
+          "name": "MTN Internet",
+          "apn": "fast internet",
+          "type": "default,supl",
+          "protocol": "IP",
+          "roamingProtocol": "IP",
+          "authType": "1",
+          "user": "net",
+          "password": "net",
+          "verified": false,
+          "note": "من مصدر غير رسمي — راجعه."
+        },
+        {
+          "id": "internet",
+          "label": "internet",
+          "name": "YOU Internet",
+          "apn": "internet",
+          "type": "default,supl",
+          "protocol": "IP",
+          "roamingProtocol": "IP",
+          "authType": "0",
+          "verified": false
+        }
+      ]
+    },
+    {
+      "id": "sabafon",
+      "name": "SabaFon",
+      "nameAr": "سبأفون",
+      "mcc": "421",
+      "mnc": "01",
+      "apns": [
+        {
+          "id": "internet",
+          "label": "internet",
+          "name": "SabaFon Net",
+          "apn": "internet",
+          "type": "default,supl",
+          "protocol": "IP",
+          "roamingProtocol": "IP",
+          "authType": "0",
+          "verified": true,
+          "note": "حسب الموقع الرسمي لسبأفون: الـ APN هو الكلمة internet."
+        }
+      ]
+    },
+    {
+      "id": "y-telecom",
+      "name": "Y Telecom",
+      "nameAr": "واي",
+      "mcc": "421",
+      "mnc": "04",
+      "apns": [
+        {
+          "id": "internet",
+          "label": "internet",
+          "name": "Y Internet",
+          "apn": "internet",
+          "type": "default,supl",
+          "protocol": "IP",
+          "roamingProtocol": "IP",
+          "authType": "0",
+          "verified": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+appId: com.capji.teel
+productName: CAPji teel
+copyright: CAPJI
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**/*
+  - package.json
+asar: true
+# ملفات القوالب وأدوات adb/fastboot تُنسخ بجانب البرنامج (خارج asar) ليسهل تعديلها
+extraResources:
+  - from: resources/data
+    to: data
+  - from: resources/tools
+    to: tools
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: CAPji-teel-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: CAPji teel

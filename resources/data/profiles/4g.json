@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "id": "4g-status",
+      "section": "4g",
+      "title": "فحص حالة الشبكة والبيانات",
+      "description": "يعرض نوع الشبكة والمشغّل وحالة الشريحة ووضع الشبكة المفضّل (قراءة فقط).",
+      "risk": "low",
+      "steps": [
+        { "id": "props", "label": "خصائص الشبكة والشريحة", "type": "shell", "command": "getprop | grep -E 'gsm.network.type|gsm.operator|gsm.sim.state|gsm.version.baseband' || true" },
+        { "id": "mode", "label": "وضع الشبكة المفضّل", "type": "shell", "command": "settings get global preferred_network_mode", "continueOnError": true },
+        { "id": "data", "label": "حالة بيانات الجوال", "type": "shell", "command": "settings get global mobile_data", "continueOnError": true },
+        { "id": "reg", "label": "تسجيل الشبكة", "type": "shell", "command": "dumpsys telephony.registry | grep -i -E 'mDataConnectionState|mDataNetworkType|mVoiceNetworkType' | head -n 10 || true", "continueOnError": true }
+      ]
+    },
+    {
+      "id": "4g-network-mode",
+      "section": "4g",
+      "title": "ضبط وضع الشبكة المفضّل (4G / 3G / 2G)",
+      "description": "يغيّر وضع الشبكة المفضّل ثم يعيد تشغيل الراديو (وضع الطيران) ليسري التغيير.",
+      "risk": "medium",
+      "backupFirst": true,
+      "warnings": ["قد لا يدعم بعض الأجهزة/الإصدارات تغيير الوضع عبر ADB دون Root؛ يظهر الناتج الفعلي في السجل."],
+      "inputs": [
+        {
+          "id": "mode",
+          "label": "وضع الشبكة",
+          "type": "select",
+          "options": [
+            { "value": "9", "label": "4G/3G/2G تلقائي (LTE/GSM/WCDMA) — الأفضل" },
+            { "value": "11", "label": "4G فقط (LTE only)" },
+            { "value": "12", "label": "4G/3G (LTE/WCDMA)" },
+            { "value": "3", "label": "3G/2G تلقائي (بدون LTE)" },
+            { "value": "1", "label": "2G فقط (GSM)" }
+          ]
+        }
+      ],
+      "steps": [
+        { "id": "set1", "label": "ضبط الوضع (الشريحة 1)", "type": "shell", "command": "settings put global preferred_network_mode {{input.mode}}" },
+        { "id": "set2", "label": "ضبط الوضع (الشريحة 2)", "type": "shell", "command": "settings put global preferred_network_mode1 {{input.mode}}", "continueOnError": true },
+        { "id": "air-on", "label": "تشغيل وضع الطيران", "type": "shell", "command": "cmd connectivity airplane-mode enable", "continueOnError": true },
+        { "id": "wait", "label": "انتظار", "type": "delay", "ms": 3000 },
+        { "id": "air-off", "label": "إيقاف وضع الطيران", "type": "shell", "command": "cmd connectivity airplane-mode disable", "continueOnError": true },
+        { "id": "verify", "label": "التحقق من الوضع الحالي", "type": "shell", "command": "settings get global preferred_network_mode", "expect": "^\\s*{{input.mode}}" }
+      ]
+    },
+    {
+      "id": "4g-apn-insert",
+      "section": "4g",
+      "title": "إضافة نقطة وصول APN (عبر ADB)",
+      "description": "يضيف APN المحدد أعلى الصفحة إلى قاعدة بيانات الجهاز، ثم يتحقق من وجوده ويفتح شاشة APN لاختياره.",
+      "risk": "medium",
+      "backupFirst": true,
+      "warnings": [
+        "إضافة APN دون Root تعمل على بعض الأجهزة/الإصدارات فقط؛ إن رفض الجهاز (Permission Denial) أدخل الـ APN يدوياً من شاشة الإعدادات التي ستُفتح.",
+        "بعد الإضافة اختر الـ APN الجديد يدوياً في شاشة APN."
+      ],
+      "steps": [
+        {
+          "id": "insert",
+          "label": "إدراج APN",
+          "type": "shell",
+          "command": "content insert --uri content://telephony/carriers --bind name:s:'{{apn.name}}' --bind apn:s:'{{apn.apn}}' --bind mcc:s:'{{carrier.mcc}}' --bind mnc:s:'{{carrier.mnc}}' --bind numeric:s:'{{carrier.mccmnc}}' --bind type:s:'{{apn.type}}' --bind protocol:s:'{{apn.protocol}}' --bind roaming_protocol:s:'{{apn.roamingProtocol}}' --bind authtype:i:{{apn.authType}} --bind user:s:'{{apn.user}}' --bind password:s:'{{apn.password}}' --bind carrier_enabled:i:1 --bind bearer:i:0",
+          "reject": "Permission Denial|Exception|Error|Unknown"
+        },
+        {
+          "id": "verify",
+          "label": "التحقق من وجود الـ APN",
+          "type": "shell",
+          "command": "content query --uri content://telephony/carriers --projection name:apn --where \"numeric='{{carrier.mccmnc}}'\"",
+          "expect": "apn={{apn.apn}}"
+        },
+        { "id": "open", "label": "فتح شاشة APN في الجهاز", "type": "shell", "command": "am start -a android.settings.APN_SETTINGS", "continueOnError": true }
+      ]
+    },
+    {
+      "id": "4g-apn-at",
+      "section": "4g",
+      "title": "ضبط APN على مستوى المودم (AT)",
+      "description": "يكتب سياق البيانات الأول (CID 1) في المودم عبر منفذ COM: AT+CGDCONT.",
+      "risk": "medium",
+      "requires": ["com"],
+      "warnings": ["يحتاج منفذ مودم (AT) ظاهراً في لوحة الجهاز، ومكتبة serialport."],
+      "steps": [
+        { "id": "before", "label": "قراءة السياقات الحالية", "type": "at", "command": "AT+CGDCONT?" },
+        { "id": "set", "label": "ضبط APN", "type": "at", "command": "AT+CGDCONT=1,\"{{apn.protocol}}\",\"{{apn.apn}}\"" },
+        { "id": "after", "label": "التحقق", "type": "at", "command": "AT+CGDCONT?", "expect": "{{apn.apn}}" }
+      ]
+    },
+    {
+      "id": "4g-apn-list",
+      "section": "4g",
+      "title": "عرض APN الموجودة على الجهاز للشركة المختارة",
+      "description": "قراءة فقط: يعرض نقاط الوصول المخزنة للشركة المحددة.",
+      "risk": "low",
+      "steps": [
+        {
+          "id": "list",
+          "label": "قائمة APN",
+          "type": "shell",
+          "command": "content query --uri content://telephony/carriers --projection name:apn:type --where \"numeric='{{carrier.mccmnc}}'\""
+        }
+      ]
+    },
+    {
+      "id": "4g-radio-refresh",
+      "section": "4g",
+      "title": "إعادة تشغيل الراديو (تحديث الشبكة)",
+      "description": "تشغيل ثم إيقاف وضع الطيران لإجبار الجهاز على إعادة التسجيل بالشبكة.",
+      "risk": "low",
+      "steps": [
+        { "id": "on", "label": "تشغيل وضع الطيران", "type": "shell", "command": "cmd connectivity airplane-mode enable" },
+        { "id": "wait", "label": "انتظار", "type": "delay", "ms": 3000 },
+        { "id": "off", "label": "إيقاف وضع الطيران", "type": "shell", "command": "cmd connectivity airplane-mode disable" }
+      ]
+    }
+  ]
+}

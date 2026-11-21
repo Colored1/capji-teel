@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "id": "carrier-lock-status-adb",
+      "section": "carrier",
+      "title": "فحص حالة الشريحة والشبكة (ADB)",
+      "description": "قراءة فقط: حالة الشريحة والمشغّل وأي خصائص مرتبطة بقفل الشركة.",
+      "risk": "low",
+      "steps": [
+        { "id": "sim", "label": "حالة الشريحة والمشغّل", "type": "shell", "command": "getprop | grep -E 'gsm.sim.state|gsm.sim.operator|gsm.operator' || true" },
+        { "id": "lock", "label": "خصائص القفل/الشركة", "type": "shell", "command": "getprop | grep -i -E 'carrier|simlock|nck|sim_lock' || true", "continueOnError": true },
+        { "id": "svc", "label": "حالة الخدمة", "type": "shell", "command": "dumpsys telephony.registry | grep -i mServiceState | head -n 4 || true", "continueOnError": true }
+      ]
+    },
+    {
+      "id": "carrier-lock-status-at",
+      "section": "carrier",
+      "title": "فحص قفل الشبكة عبر المودم (AT)",
+      "description": "يسأل المودم عن حالة PIN وقفل الشبكة (PN) والمجموعات الأخرى. قراءة فقط.",
+      "risk": "low",
+      "requires": ["com"],
+      "steps": [
+        { "id": "cpin", "label": "حالة الشريحة (CPIN)", "type": "at", "command": "AT+CPIN?", "continueOnError": true },
+        { "id": "pn", "label": "قفل الشبكة PN (1=مقفل، 0=مفتوح)", "type": "at", "command": "AT+CLCK=\"PN\",2", "continueOnError": true },
+        { "id": "pu", "label": "قفل مجموعة الشبكة PU", "type": "at", "command": "AT+CLCK=\"PU\",2", "continueOnError": true },
+        { "id": "pp", "label": "قفل مزوّد الخدمة PP", "type": "at", "command": "AT+CLCK=\"PP\",2", "continueOnError": true },
+        { "id": "cops", "label": "المشغّل الحالي", "type": "at", "command": "AT+COPS?", "continueOnError": true },
+        { "id": "csq", "label": "قوة الإشارة", "type": "at", "command": "AT+CSQ", "continueOnError": true }
+      ]
+    },
+    {
+      "id": "carrier-unlock-nck",
+      "section": "carrier",
+      "title": "فك قفل الشبكة بالكود الرسمي (NCK)",
+      "description": "يرسل كود فك الشبكة (Network Control Key) إلى المودم بأمر 3GPP القياسي AT+CLCK=\"PN\",0. يتحقق أولاً أن الجهاز مقفل فعلاً، ويتحقق بعد التنفيذ.",
+      "risk": "high",
+      "backupFirst": true,
+      "requires": ["com"],
+      "warnings": [
+        "استخدم كوداً صحيحاً من الشركة أو من جهة موثوقة لهذا الجهاز تحديداً.",
+        "عدد المحاولات الخاطئة محدود: بعدها قد يطلب الجهاز PUK أو يُقفل نهائياً. لا تكرر المحاولة عند الفشل.",
+        "نفّذ العملية فقط على أجهزة تملكها أو لديك تفويض بصيانتها."
+      ],
+      "inputs": [
+        {
+          "id": "nck",
+          "label": "كود فك الشبكة (NCK)",
+          "type": "password",
+          "pattern": "^[0-9A-Za-z]{4,20}$",
+          "placeholder": "8 إلى 16 رقماً عادةً",
+          "help": "لا يُحفظ الكود ويُخفى في السجل."
+        }
+      ],
+      "steps": [
+        { "id": "precheck", "label": "التأكد أن الجهاز مقفل بالشبكة", "type": "at", "command": "AT+CLCK=\"PN\",2", "expect": "\\+CLCK:\\s*1" },
+        { "id": "unlock", "label": "إرسال كود الفك", "type": "at", "command": "AT+CLCK=\"PN\",0,\"{{input.nck}}\"" },
+        { "id": "verify", "label": "التحقق من الفك", "type": "at", "command": "AT+CLCK=\"PN\",2", "expect": "\\+CLCK:\\s*0" }
+      ]
+    },
+    {
+      "id": "carrier-select-auto",
+      "section": "carrier",
+      "title": "اختيار الشبكة تلقائياً",
+      "description": "AT+COPS=0: يترك الجهاز يختار الشبكة المتاحة تلقائياً.",
+      "risk": "medium",
+      "requires": ["com"],
+      "steps": [
+        { "id": "auto", "label": "اختيار تلقائي", "type": "at", "command": "AT+COPS=0", "timeoutMs": 60000 },
+        { "id": "check", "label": "المشغّل الحالي", "type": "at", "command": "AT+COPS?", "continueOnError": true }
+      ]
+    },
+    {
+      "id": "carrier-select-manual",
+      "section": "carrier",
+      "title": "تسجيل الشريحة على الشركة المختارة (يدوي)",
+      "description": "AT+COPS=1,2: يُجبر المودم على التسجيل بشبكة الشركة المحددة أعلى الصفحة (يمن موبايل / MTN / سبأفون / واي).",
+      "risk": "medium",
+      "requires": ["com"],
+      "warnings": ["إن لم تكن شريحة هذه الشركة داخل الجهاز قد لا يجد شبكة؛ ارجع للاختيار التلقائي."],
+      "steps": [
+        { "id": "manual", "label": "تسجيل يدوي", "type": "at", "command": "AT+COPS=1,2,\"{{carrier.mccmnc}}\"", "timeoutMs": 90000 },
+        { "id": "check", "label": "المشغّل الحالي", "type": "at", "command": "AT+COPS?", "continueOnError": true }
+      ]
+    }
+  ]
+}

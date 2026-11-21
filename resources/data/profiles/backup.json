@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "id": "backup-snapshot",
+      "section": "backup",
+      "title": "نسخة احتياطية لإعدادات الجهاز والشبكة",
+      "description": "يحفظ خصائص النظام والإعدادات وقائمة APN وإعدادات الشركة في ملفات نصية قبل أي تعديل.",
+      "risk": "low",
+      "steps": [{ "id": "snap", "label": "أخذ النسخة", "type": "backup", "backupKind": "snapshot" }]
+    },
+    {
+      "id": "backup-files",
+      "section": "backup",
+      "title": "نسخ ملفات المستخدم إلى الكمبيوتر",
+      "description": "ينسخ مجلداً من ذاكرة الجهاز (صور، تنزيلات…) إلى مجلد النسخ على الكمبيوتر.",
+      "risk": "low",
+      "inputs": [
+        {
+          "id": "remote",
+          "label": "المجلد",
+          "type": "select",
+          "options": [
+            { "value": "/sdcard/DCIM", "label": "الكاميرا (DCIM)" },
+            { "value": "/sdcard/Pictures", "label": "الصور (Pictures)" },
+            { "value": "/sdcard/Download", "label": "التنزيلات (Download)" },
+            { "value": "/sdcard/Documents", "label": "المستندات (Documents)" },
+            { "value": "/sdcard/WhatsApp", "label": "واتساب (WhatsApp)" }
+          ]
+        }
+      ],
+      "steps": [
+        { "id": "pull", "label": "نسخ المجلد", "type": "adb", "args": ["pull", "{{input.remote}}", "{{backupDir}}"], "timeoutMs": 3600000 }
+      ]
+    },
+    {
+      "id": "backup-contacts-sms",
+      "section": "backup",
+      "title": "نسخ جهات الاتصال والرسائل (ملفات نصية)",
+      "description": "يحفظ جهات الاتصال والرسائل في ملفات نصية بدون عرضها في السجل (خصوصية).",
+      "risk": "low",
+      "warnings": ["قراءة الرسائل قد تُرفض على أندرويد الحديث؛ تُحفظ جهات الاتصال بشكل مستقل."],
+      "steps": [
+        {
+          "id": "contacts",
+          "label": "جهات الاتصال",
+          "type": "shell",
+          "command": "content query --uri content://com.android.contacts/data/phones --projection display_name:data1",
+          "saveAs": "contacts.txt",
+          "quiet": true,
+          "reject": "Permission Denial|Exception"
+        },
+        {
+          "id": "sms",
+          "label": "الرسائل",
+          "type": "shell",
+          "command": "content query --uri content://sms --projection address:date:type:body",
+          "saveAs": "sms.txt",
+          "quiet": true,
+          "continueOnError": true,
+          "reject": "Permission Denial|Exception"
+        }
+      ]
+    },
+    {
+      "id": "backup-adb-legacy",
+      "section": "backup",
+      "title": "نسخة كاملة عبر adb backup (قديمة)",
+      "description": "نسخة للتطبيقات وبياناتها والتخزين المشترك. تحتاج الموافقة على شاشة الجهاز وقد تأخذ وقتاً طويلاً.",
+      "risk": "medium",
+      "warnings": ["مقيّدة في أندرويد 12 فما فوق، وكثير من التطبيقات تمنع النسخ. ستظهر نافذة على الجهاز: اضغط «نسخ احتياطي»."],
+      "steps": [
+        { "id": "backup", "label": "adb backup", "type": "adb", "args": ["backup", "-apk", "-shared", "-all", "-nosystem", "-f", "{{backupDir}}/backup.ab"], "timeoutMs": 3600000 }
+      ]
+    },
+    {
+      "id": "backup-efs-root",
+      "section": "backup",
+      "title": "نسخ قسم المودم/EFS (Root)",
+      "description": "ينسخ قسماً حساساً (EFS/NV/persist) إلى الكمبيوتر لحماية بيانات الشبكة قبل البرمجة. يتطلب Root.",
+      "risk": "medium",
+      "warnings": ["اسم القسم يختلف بين الأجهزة؛ إن فشل لا يوجد القسم بهذا الاسم على جهازك.", "احتفظ بالنسخة في مكان آمن."],
+      "inputs": [
+        {
+          "id": "part",
+          "label": "القسم",
+          "type": "select",
+          "options": [
+            { "value": "efs", "label": "efs (سامسونج وغيره)" },
+            { "value": "modemst1", "label": "modemst1 (Qualcomm)" },
+            { "value": "modemst2", "label": "modemst2 (Qualcomm)" },
+            { "value": "persist", "label": "persist (Qualcomm)" },
+            { "value": "nvram", "label": "nvram (MediaTek)" },
+            { "value": "nvdata", "label": "nvdata (MediaTek)" },
+            { "value": "protect1", "label": "protect1 (MediaTek)" },
+            { "value": "protect2", "label": "protect2 (MediaTek)" }
+          ]
+        }
+      ],
+      "steps": [
+        { "id": "dd", "label": "قراءة القسم", "type": "shell", "su": true, "command": "dd if=/dev/block/by-name/{{input.part}} of=/sdcard/capji_{{input.part}}.img bs=4096", "reject": "No such file|Permission denied|not found", "timeoutMs": 300000 },
+        { "id": "pull", "label": "نسخ الملف للكمبيوتر", "type": "adb", "args": ["pull", "/sdcard/capji_{{input.part}}.img", "{{backupDir}}"] },
+        { "id": "clean", "label": "حذف الملف المؤقت من الجهاز", "type": "shell", "command": "rm /sdcard/capji_{{input.part}}.img", "continueOnError": true }
+      ]
+    }
+  ]
+}
