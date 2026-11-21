@@ -20,9 +20,11 @@ win:
       arch: [x64]
     - target: portable
       arch: [x64]
-  artifactName: CAPji-teel-${version}-${arch}.${ext}
 nsis:
+  artifactName: CAPji-teel-Setup-${version}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: CAPji teel
+portable:
+  artifactName: CAPji-teel-Portable-${version}.${ext}
