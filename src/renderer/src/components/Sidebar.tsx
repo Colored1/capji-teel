@@ -40,8 +40,9 @@ export function Sidebar({ page, onChange }: { page: PageId; onChange: (p: PageId
           )
         })}
       </nav>
-      <div className="px-4 py-3 text-[11px] text-ink-400" dir="ltr">
-        CAPji teel · v1.0.0
+      <div className="px-4 py-3 text-[11px] leading-relaxed text-ink-400">
+        <div dir="ltr">CAPji teel · v1.0.0</div>
+        <div>تطوير: أحمد الارحبي — CAPJI كابجي</div>
       </div>
     </aside>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { AppInfo } from '@shared/types'
 import { Icon } from '../components/Icons'
+import markUrl from '../assets/capji-icon.png'
 import { useApp } from '../state/AppContext'
 
 export function Settings(): JSX.Element {
@@ -37,6 +38,23 @@ export function Settings(): JSX.Element {
         </span>
         <h1 className="text-xl font-extrabold">الإعدادات</h1>
         {msg && <span className="ms-3 text-sm text-ok">{msg}</span>}
+      </div>
+
+      <div className="card mb-4 flex flex-col items-center gap-4 text-center md:flex-row md:text-start">
+        <img src={markUrl} alt="CAPJI" className="h-24 w-24 shrink-0 rounded-2xl" draggable={false} />
+        <div className="flex-1 space-y-1.5">
+          <div className="text-xs text-ink-400">تم تطوير هذا البرنامج بواسطة</div>
+          <div className="text-xl font-extrabold text-brand">أحمد الارحبي</div>
+          <div className="text-sm text-ink-200">CAPJI كابجي — Creative • Media • Technology</div>
+          <div className="text-xs text-ink-300">مهندس برمجيات | مطور تطبيقات ومواقع | مختص هاردوير وشبكات | مصمم جرافيك ومونتير فيديو</div>
+          <div className="text-xs text-ink-300">اليمن — إب</div>
+          <div className="flex flex-wrap justify-center gap-2 pt-2 md:justify-start" dir="ltr">
+            <a className="btn" href="https://capji-capji.vercel.app/" target="_blank" rel="noreferrer">الموقع</a>
+            <a className="btn" href="https://instagram.com/axh.d" target="_blank" rel="noreferrer">Instagram @axh.d</a>
+            <a className="btn" href="https://wa.me/967772678571" target="_blank" rel="noreferrer">WhatsApp +967 772 678 571</a>
+          </div>
+          <div className="selectable pt-1 text-xs text-ink-400" dir="ltr">colored.clover@outlook.com</div>
+        </div>
       </div>
 
       <div className="card mb-4 space-y-3">

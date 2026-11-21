@@ -15,6 +15,7 @@ extraResources:
   - from: resources/tools
     to: tools
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]
@@ -26,5 +27,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: CAPji teel
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
 portable:
   artifactName: CAPji-teel-Portable-${version}.${ext}

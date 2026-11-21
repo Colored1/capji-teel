@@ -23,7 +23,8 @@ function createWindow(): void {
     minWidth: 1100,
     minHeight: 700,
     title: APP_NAME, // عنوان النافذة (Title Bar)
-    backgroundColor: '#0b0f17',
+    backgroundColor: '#0a0a0e',
+    ...(app.isPackaged ? {} : { icon: join(__dirname, '../../build/icon.png') }),
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
